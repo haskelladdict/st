@@ -6,15 +6,6 @@ use std::io::{BufRead, BufReader};
 
 mod stats;
 
-#[derive(Default)]
-struct Output {
-  count: i64,
-  min: f64,
-  max: f64,
-  mean: f64,
-  median: f64,
-  sd: f64,
-}
 
 fn main() {
   let args: Vec<_> = env::args().collect();
@@ -31,56 +22,112 @@ fn main() {
 
   let buf = BufReader::new(file.unwrap());
   let out = compute_statistics(buf);
-  println!("#elems : {}", out.count);
-  println!("min    : {}", out.min);
-  println!("max    : {}", out.max);
-  println!("mean   : {}", out.mean);
-  println!("median : {}", out.median);
-  println!("std    : {}", out.sd);
+  let mut count = 0;
+  for o in out {
+    println!("Column {}: \n", count);
+    println!("#elems : {}", o.count);
+    println!("min    : {}", o.min);
+    println!("max    : {}", o.max);
+    println!("mean   : {}", o.mean);
+    println!("median : {}", o.median);
+    println!("std    : {}", o.sd);
+    println!("\n\n");
+    count += 1;
+  }
 }
 
 
 // compute_statistics computes basic statistics for the content of the
 // provided BufReader
-fn compute_statistics(buf: BufReader<File>) -> Output {
-  let mut out = Output { count: 0, min: f64::MAX, max: -f64::MAX, mean: 0.0,
-    median: 0.0, sd: 0.0};
+fn compute_statistics(mut buf: BufReader<File>) -> Vec<Output> {
 
-  let mut qk = 0.0;
-  let mut mk = 0.0;
-  let mut med = stats::Median::new();
-  for line_r in buf.lines() {
-    let line = line_r.unwrap();
-    let n_r = line.to_string().parse::<f64>();
+  // read first line to determine number of data columns
+  let mut out = Vec::new();
+  let mut s : &mut String = &mut String::new();
+  let r = buf.read_line(s);
+  if r.is_err () {
+    return out;
+  }
+  let tokens : Vec<&str> = s.split(" ").collect();
+  for i in 0..tokens.len() {
+    out.push(Output::new());
+    let n_r = tokens[i].trim().parse::<f64>();
     if n_r.is_err() {
-      println!("Warning {} in line {} is not a number. Skipping", line, out.count);
+      println!("Warning {} in line {} is not a number. Skipping", s, out[i].count);
       continue;
     }
     let n = n_r.unwrap();
-    out.count += 1;
-
-    // update median
-    med.update(stats::FloatVal::new(n));
-
-    // update variance
-    let k: f64 = out.count as f64;
-    qk += (k - 1.0) * (n - mk) * (n - mk) / k;
-    mk += (n - mk) / k;
-
-    // update min, max, and mean
-    out.mean += n;
-    out.min = out.min.min(n);
-    out.max = out.max.max(n);
+    out[i].update(n);
   }
-  let k: f64 = out.count as f64;
-  out.sd = (qk/(k-1.0)).sqrt();
-  out.mean /= k;
-  out.median = med.get();
 
+  for line_r in buf.lines() {
+    let line = line_r.unwrap();
+    let tokens : Vec<&str> = line.split(" ").collect();
+    for i in 0..tokens.len() {
+      let n_r = tokens[i].trim().parse::<f64>();
+      if n_r.is_err() {
+        println!("Warning {} in line {} is not a number. Skipping", line, out[i].count);
+        continue;
+      }
+      let n = n_r.unwrap();
+      out[i].update(n);
+    }
+  }
+  for i in 0..out.len() {
+    out[i].finalize();
+  }
   out
 }
 
 // usage prints a short message describing the usage of the function
 fn usage() {
   println!("usage: stats <filename>");
+}
+
+
+// Output keeps track of the per column statistics
+#[derive(Default)]
+struct Output {
+  count: i64,
+  min: f64,
+  max: f64,
+  mean: f64,
+  median: f64,
+  sd: f64,
+
+  qk: f64,
+  mk: f64,
+  med: stats::Median,
+}
+
+impl Output {
+
+  fn new() -> Output {
+    Output { count: 0, min: f64::MAX, max: -f64::MAX, mean: 0.0,
+      median: 0.0, sd: 0.0, qk: 0.0, mk: 0.0, med: stats::Median::new()}
+  }
+
+  fn update(&mut self, v: f64) {
+    self.count += 1;
+
+    // update median
+    self.med.update(stats::FloatVal::new(v));
+
+    // update variance
+    let k: f64 = self.count as f64;
+    self.qk += (k - 1.0) * (v - self.mk) * (v - self.mk) / k;
+    self.mk += (v - self.mk) / k;
+
+    // update min, max, and mean
+    self.mean += v;
+    self.min = self.min.min(v);
+    self.max = self.max.max(v);
+  }
+
+  fn finalize(&mut self) {
+    let k: f64 = self.count as f64;
+    self.sd = (self.qk/(k-1.0)).sqrt();
+    self.mean /= k;
+    self.median = self.med.get();
+  }
 }

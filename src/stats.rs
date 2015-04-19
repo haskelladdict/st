@@ -2,7 +2,7 @@
 use std::collections::BinaryHeap;
 use std::cmp::Ordering;
 
-#[derive(Copy, Clone, PartialOrd, PartialEq)]
+#[derive(Copy, Clone, Default, PartialOrd, PartialEq)]
 pub struct FloatVal {
   v: f64,
 }
@@ -29,6 +29,7 @@ impl Eq for FloatVal {}
 
 
 // Median implements a running median on top of two binary heaps
+#[derive(Default)]
 pub struct Median {
   sm: BinaryHeap<FloatVal>,
   lg: BinaryHeap<FloatVal>,
