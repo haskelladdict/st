@@ -1,0 +1,4 @@
+target
+stats*
+*.dat
+Makefile
