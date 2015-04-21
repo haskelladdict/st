@@ -1,4 +1,4 @@
 [package]
-name = "stats"
+name = "st"
 version = "0.0.1"
 authors = ["Markus Dittrich <haskelladdict@gmail.com>"]
