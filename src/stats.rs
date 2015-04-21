@@ -1,3 +1,11 @@
+// Copyright 2015 Markus Dittrich
+// Licensed under BSD license, see LICENSE file for details
+//
+// st is a simple commandline helper script for calculating basic
+// statistics on a data file consisting of column oriented
+// floating point numbers.
+// NOTE: Currently stats will read in all the data to compute the statistics
+// and thus require memory on the order of the data set size.
 
 use std::collections::BinaryHeap;
 use std::cmp::Ordering;

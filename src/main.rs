@@ -1,3 +1,11 @@
+// Copyright 2015 Markus Dittrich
+// Licensed under BSD license, see LICENSE file for details
+//
+// st is a simple commandline helper script for calculating basic
+// statistics on a data file consisting of column oriented
+// floating point numbers.
+// NOTE: Currently stats will read in all the data to compute the statistics
+// and thus require memory on the order of the data set size.
 
 use std::env;
 use std::f64;
@@ -43,11 +51,12 @@ fn compute_statistics(mut buf: BufReader<File>) -> Vec<Output> {
 
   // read first line to determine number of data columns
   let mut out = Vec::new();
-  let mut s : &mut String = &mut String::new();
+  let s = &mut String::new();
   let r = buf.read_line(s);
   if r.is_err () {
     return out;
   }
+
   let tokens : Vec<&str> = s.split(" ").collect();
   for i in 0..tokens.len() {
     out.push(Output::new());
@@ -73,8 +82,8 @@ fn compute_statistics(mut buf: BufReader<File>) -> Vec<Output> {
       out[i].update(n);
     }
   }
-  for i in 0..out.len() {
-    out[i].finalize();
+  for o in out.iter_mut() { //&mut out {
+    o.finalize();
   }
   out
 }
@@ -94,7 +103,6 @@ struct Output {
   mean: f64,
   median: f64,
   sd: f64,
-
   qk: f64,
   mk: f64,
   med: stats::Median,
